@@ -12,7 +12,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "import:docs": "ts-node src/scripts/importDocs.ts"
+    "import:docs": "ts-node src/scripts/importDocs.ts",
+    "import:docs:prod": "node dist/scripts/importDocs.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

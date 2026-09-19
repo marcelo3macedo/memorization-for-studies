@@ -39,7 +39,7 @@ jobs:
             --exclude='data' \
             --exclude='node_modules' \
             -e "ssh -p ${{ secrets.DEPLOY_PORT || 22 }}" \
-            dist package.json package-lock.json ecosystem.config.js \
+            dist docs package.json package-lock.json ecosystem.config.js \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/"
 
       - name: Install production dependencies and restart app
@@ -53,5 +53,6 @@ jobs:
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
             npm ci --omit=dev
+            npm run import:docs:prod
             pm2 startOrReload ecosystem.config.js
             pm2 save
