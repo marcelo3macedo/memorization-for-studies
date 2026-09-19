@@ -26,19 +26,22 @@ function isExpired(session: Session): boolean {
 /**
  * Sessões criadas antes da existência de `completed_at` (ou que, por algum
  * motivo, não passaram pelo fluxo normal de "Próximo") podem ter todos os
- * cards respondidos sem nunca terem sido marcadas como concluídas — ficam
- * "presas". Detecta esse caso recomputando a partir dos session_cards.
+ * cards respondidos — ou nem ter card nenhum, caso tenham sido criadas
+ * quando a tabela `cards` ainda estava vazia — sem nunca terem sido
+ * marcadas como concluídas. Ficam "presas". `every` numa lista vazia é
+ * `true`, então uma sessão sem cards também conta como "sem nada pendente".
+ * Detecta esses casos recomputando a partir dos session_cards.
  */
-function isFullyAnswered(session: Session): boolean {
+function isSessionDone(session: Session): boolean {
   const cards = getSessionCards(session.id);
-  return cards.length > 0 && cards.every((card) => card.answeredAt !== null);
+  return cards.every((card) => card.answeredAt !== null);
 }
 
-/** Uma sessão precisa ser renovada se já foi concluída, expirou por tempo, ou está presa (todos os cards já respondidos). */
+/** Uma sessão precisa ser renovada se já foi concluída, expirou por tempo, ou está presa (nada pendente nela). */
 function needsNewSession(session: Session): boolean {
   if (session.completedAt !== null || isExpired(session)) return true;
 
-  if (isFullyAnswered(session)) {
+  if (isSessionDone(session)) {
     markSessionCompleted(session.id);
     return true;
   }
@@ -106,7 +109,7 @@ export function getNextSessionCard(sessionId: number): NextSessionCard {
   const answeredCount = cards.filter((card) => card.answeredAt !== null).length;
   const sessionCard = cards.find((card) => card.answeredAt === null) ?? null;
 
-  if (!sessionCard && cards.length > 0) {
+  if (!sessionCard) {
     markSessionCompleted(sessionId);
   }
 
