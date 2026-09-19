@@ -5,6 +5,7 @@ export interface Session {
   userId: number;
   startedAt: string;
   lastActivityAt: string;
+  completedAt: string | null;
 }
 
 interface SessionRow {
@@ -12,6 +13,7 @@ interface SessionRow {
   user_id: number;
   started_at: string;
   last_activity_at: string;
+  completed_at: string | null;
 }
 
 function mapSession(row: SessionRow): Session {
@@ -20,6 +22,7 @@ function mapSession(row: SessionRow): Session {
     userId: row.user_id,
     startedAt: row.started_at,
     lastActivityAt: row.last_activity_at,
+    completedAt: row.completed_at,
   };
 }
 
@@ -42,6 +45,12 @@ export function createSession(userId: number): Session {
 
 export function touchSession(sessionId: number): void {
   db.prepare("UPDATE sessions SET last_activity_at = datetime('now') WHERE id = ?").run(sessionId);
+}
+
+export function markSessionCompleted(sessionId: number): void {
+  db.prepare("UPDATE sessions SET completed_at = COALESCE(completed_at, datetime('now')) WHERE id = ?").run(
+    sessionId,
+  );
 }
 
 export interface SessionCard {

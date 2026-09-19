@@ -1,9 +1,10 @@
 import type { TelegramCallbackQuery } from "../types";
 import { answerCallbackQuery, editMessageText, sendMessage } from "../telegramClient";
 import { syncTelegramUser } from "../userSync";
-import { getNextSessionCard, registerCardInteraction } from "../../core/sessionService";
+import { ensureSession, getNextSessionCard, registerCardInteraction } from "../../core/sessionService";
 import { decodeCardAction } from "../cardActions";
-import { decodeSessionAction, encodeSessionNextAction } from "../sessionActions";
+import { decodeSessionAction, encodeSessionNewAction, encodeSessionNextAction } from "../sessionActions";
+import { announceSession } from "../sessionMessages";
 import { inlineKeyboard } from "../keyboards";
 import { sendCard } from "../cardMessages";
 import { getCardById } from "../../database/cardsRepository";
@@ -24,8 +25,13 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery):
   if (!chatId) return;
 
   const sessionAction = decodeSessionAction(data);
-  if (sessionAction) {
+  if (sessionAction?.type === "next") {
     await advanceSession(chatId, sessionAction.sessionId);
+    return;
+  }
+  if (sessionAction?.type === "new") {
+    const { session, cards } = ensureSession(user.id);
+    await announceSession(chatId, session, cards);
     return;
   }
 
@@ -75,6 +81,9 @@ async function advanceSession(chatId: number, sessionId: number): Promise<void> 
 
   if (!sessionCard) {
     await sendMessage(chatId, `🎉 Sessão finalizada! Você revisou ${totalCards} card(s). Até a próxima!`);
+    await sendMessage(chatId, "Deseja iniciar uma nova sessão agora?", {
+      reply_markup: inlineKeyboard([[{ text: "🔄 Iniciar nova sessão", data: encodeSessionNewAction() }]]),
+    });
     return;
   }
 

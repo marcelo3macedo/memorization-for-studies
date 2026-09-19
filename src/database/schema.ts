@@ -40,7 +40,8 @@ export function initSchema(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       started_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_activity_at TEXT NOT NULL DEFAULT (datetime('now'))
+      last_activity_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
@@ -63,4 +64,10 @@ export function initSchema(db: Database.Database): void {
       PRIMARY KEY (user_id, card_id)
     );
   `);
+
+  // Migração para bancos criados antes da coluna completed_at existir.
+  const sessionColumns = db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[];
+  if (!sessionColumns.some((column) => column.name === "completed_at")) {
+    db.exec("ALTER TABLE sessions ADD COLUMN completed_at TEXT");
+  }
 }
