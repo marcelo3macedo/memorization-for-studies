@@ -33,3 +33,12 @@ export function sendMessage(chatId: number, text: string, extra: Record<string, 
 export function answerCallbackQuery(callbackQueryId: string, extra: Record<string, unknown> = {}) {
   return callTelegramApi("answerCallbackQuery", { callback_query_id: callbackQueryId, ...extra });
 }
+
+export function editMessageText(
+  chatId: number,
+  messageId: number,
+  text: string,
+  extra: Record<string, unknown> = {},
+) {
+  return callTelegramApi("editMessageText", { chat_id: chatId, message_id: messageId, text, ...extra });
+}

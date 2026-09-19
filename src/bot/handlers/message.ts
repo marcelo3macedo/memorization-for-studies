@@ -2,23 +2,31 @@ import type { TelegramMessage } from "../types";
 import { sendMessage } from "../telegramClient";
 import { syncTelegramUser } from "../userSync";
 import { ensureSession } from "../../core/sessionService";
+import { encodeSessionNextAction } from "../sessionActions";
+import { inlineKeyboard } from "../keyboards";
 
 export async function handleMessage(message: TelegramMessage): Promise<void> {
   const chatId = message.chat.id;
-  const text = message.text ?? "";
 
-  if (message.from) {
-    const user = syncTelegramUser(message.from);
-    const { session, cards, isNew } = ensureSession(user.id);
-    console.log(
-      `[session] usuário ${user.id} — sessão ${session.id} ${isNew ? "criada" : "contínua"} com ${cards.length} card(s)`,
-    );
-  }
+  if (!message.from) return;
 
-  console.log(`[telegram] mensagem de ${chatId}: ${text}`);
+  const user = syncTelegramUser(message.from);
+  const { session, cards, isNew } = ensureSession(user.id);
 
-  // TODO: rotear comandos (/addcard, /decks) e texto livre, incluindo
-  // respostas enviadas via reply keyboard (quick replies), que chegam
-  // aqui como uma mensagem de texto comum.
-  await sendMessage(chatId, `Recebido: ${text}`);
+  console.log(
+    `[session] usuário ${user.id} — sessão ${session.id} ${isNew ? "criada" : "contínua"} com ${cards.length} card(s)`,
+  );
+
+  // Sessão em andamento: a navegação segue pelos botões, não por mensagens de texto.
+  if (!isNew) return;
+
+  await sendMessage(chatId, `Olá, ${user.name}! 👋 Seja bem-vindo(a) ao FlashGram.`);
+
+  await sendMessage(
+    chatId,
+    `Vamos montar uma nova sessão de estudos. Preparamos ${cards.length} card(s) para você revisar agora.`,
+    {
+      reply_markup: inlineKeyboard([[{ text: "🚀 Iniciar sessão", data: encodeSessionNextAction(session.id) }]]),
+    },
+  );
 }

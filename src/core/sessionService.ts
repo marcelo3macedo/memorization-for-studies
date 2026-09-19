@@ -63,3 +63,18 @@ export function registerCardInteraction(userId: number, cardId: number): void {
     touchSession(latest.id);
   }
 }
+
+export interface NextSessionCard {
+  sessionCard: SessionCard | null;
+  totalCards: number;
+  answeredCount: number;
+}
+
+/** Próximo card pendente da sessão (por posição), ou null se a sessão já foi concluída. */
+export function getNextSessionCard(sessionId: number): NextSessionCard {
+  const cards = getSessionCards(sessionId);
+  const answeredCount = cards.filter((card) => card.answeredAt !== null).length;
+  const sessionCard = cards.find((card) => card.answeredAt === null) ?? null;
+
+  return { sessionCard, totalCards: cards.length, answeredCount };
+}
