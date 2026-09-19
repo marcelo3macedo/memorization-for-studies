@@ -23,9 +23,27 @@ function isExpired(session: Session): boolean {
   return Date.now() - toDate(session.lastActivityAt).getTime() > SESSION_TIMEOUT_MS;
 }
 
-/** Uma sessão precisa ser renovada se já foi concluída (todos os cards respondidos) ou expirou por tempo. */
+/**
+ * Sessões criadas antes da existência de `completed_at` (ou que, por algum
+ * motivo, não passaram pelo fluxo normal de "Próximo") podem ter todos os
+ * cards respondidos sem nunca terem sido marcadas como concluídas — ficam
+ * "presas". Detecta esse caso recomputando a partir dos session_cards.
+ */
+function isFullyAnswered(session: Session): boolean {
+  const cards = getSessionCards(session.id);
+  return cards.length > 0 && cards.every((card) => card.answeredAt !== null);
+}
+
+/** Uma sessão precisa ser renovada se já foi concluída, expirou por tempo, ou está presa (todos os cards já respondidos). */
 function needsNewSession(session: Session): boolean {
-  return session.completedAt !== null || isExpired(session);
+  if (session.completedAt !== null || isExpired(session)) return true;
+
+  if (isFullyAnswered(session)) {
+    markSessionCompleted(session.id);
+    return true;
+  }
+
+  return false;
 }
 
 export interface ActiveSession {
