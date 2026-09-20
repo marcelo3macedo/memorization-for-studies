@@ -90,5 +90,5 @@ async function advanceSession(chatId: number, sessionId: number): Promise<void> 
   const card = getCardById(sessionCard.cardId);
   if (!card) return;
 
-  await sendCard(chatId, card);
+  await sendCard(chatId, card, sessionId);
 }

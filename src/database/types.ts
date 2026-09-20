@@ -1,4 +1,4 @@
-export type CardType = "qa" | "flashcard" | "multiple_choice";
+export type CardType = "qa" | "flashcard" | "multiple_choice" | "discursive";
 export type CardSource = "oficiais" | "gerados";
 
 export interface CardAlternative {

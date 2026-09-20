@@ -11,6 +11,7 @@ const TYPE_BY_FOLDER: Record<string, CardType> = {
   "perguntas-e-respostas": "qa",
   flashcards: "flashcard",
   "perguntas-de-alternativas": "multiple_choice",
+  discursivas: "discursive",
 };
 
 const SOURCES: CardSource[] = ["oficiais", "gerados"];

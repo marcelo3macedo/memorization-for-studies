@@ -1,12 +1,20 @@
+import { markPendingDiscursiveCard } from "../core/sessionService";
 import type { Card } from "../database/types";
 import { encodeAnswerAction, encodeRevealAction } from "./cardActions";
 import { inlineKeyboard } from "./keyboards";
 import { sendMessage } from "./telegramClient";
 
-/** Envia um card ao chat, escolhendo o formato de mensagem conforme o tipo. */
-export function sendCard(chatId: number, card: Card) {
+/**
+ * Envia um card ao chat, escolhendo o formato de mensagem conforme o tipo.
+ * `sessionId` é obrigatório para cards discursivos: marca a sessão como
+ * aguardando a resposta em texto livre do usuário para esse card.
+ */
+export function sendCard(chatId: number, card: Card, sessionId?: number) {
   if (card.type === "multiple_choice") {
     return sendMultipleChoiceCard(chatId, card);
+  }
+  if (card.type === "discursive") {
+    return sendDiscursiveCard(chatId, card, sessionId);
   }
   return sendRevealCard(chatId, card);
 }
@@ -33,4 +41,13 @@ function sendMultipleChoiceCard(chatId: number, card: Card) {
   return sendMessage(chatId, text, {
     reply_markup: inlineKeyboard([buttons]),
   });
+}
+
+/** discursivas: mostra a pergunta e pede que a resposta seja enviada como mensagem de texto livre. */
+function sendDiscursiveCard(chatId: number, card: Card, sessionId?: number) {
+  if (sessionId) {
+    markPendingDiscursiveCard(sessionId, card.id);
+  }
+
+  return sendMessage(chatId, `${card.front}\n\n✍️ Envie sua resposta em uma mensagem de texto.`);
 }

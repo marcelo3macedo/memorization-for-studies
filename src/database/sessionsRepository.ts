@@ -6,6 +6,7 @@ export interface Session {
   startedAt: string;
   lastActivityAt: string;
   completedAt: string | null;
+  pendingCardId: number | null;
 }
 
 interface SessionRow {
@@ -14,6 +15,7 @@ interface SessionRow {
   started_at: string;
   last_activity_at: string;
   completed_at: string | null;
+  pending_card_id: number | null;
 }
 
 function mapSession(row: SessionRow): Session {
@@ -23,6 +25,7 @@ function mapSession(row: SessionRow): Session {
     startedAt: row.started_at,
     lastActivityAt: row.last_activity_at,
     completedAt: row.completed_at,
+    pendingCardId: row.pending_card_id,
   };
 }
 
@@ -51,6 +54,16 @@ export function markSessionCompleted(sessionId: number): void {
   db.prepare("UPDATE sessions SET completed_at = COALESCE(completed_at, datetime('now')) WHERE id = ?").run(
     sessionId,
   );
+}
+
+/** Marca que a sessão está aguardando a resposta em texto livre de um card discursivo. */
+export function setPendingCard(sessionId: number, cardId: number): void {
+  db.prepare("UPDATE sessions SET pending_card_id = ? WHERE id = ?").run(cardId, sessionId);
+}
+
+/** Limpa a espera por resposta discursiva (após avaliar ou descartar o card pendente). */
+export function clearPendingCard(sessionId: number): void {
+  db.prepare("UPDATE sessions SET pending_card_id = NULL WHERE id = ?").run(sessionId);
 }
 
 export interface SessionCard {

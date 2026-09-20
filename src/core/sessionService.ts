@@ -1,11 +1,13 @@
 import { incrementCardView, pickCardsForSession } from "../database/cardViewsRepository";
 import {
   addSessionCards,
+  clearPendingCard,
   createSession,
   getLatestSession,
   getSessionCards,
   markSessionCardAnswered,
   markSessionCompleted,
+  setPendingCard,
   touchSession,
   type Session,
   type SessionCard,
@@ -90,6 +92,16 @@ export function registerCardInteraction(userId: number, cardId: number): void {
     markSessionCardAnswered(latest.id, cardId);
     touchSession(latest.id);
   }
+}
+
+/** Marca que a sessão está aguardando a resposta em texto livre de um card discursivo. */
+export function markPendingDiscursiveCard(sessionId: number, cardId: number): void {
+  setPendingCard(sessionId, cardId);
+}
+
+/** Limpa a espera por resposta discursiva, geralmente após avaliar ou descartar o card pendente. */
+export function clearPendingDiscursiveCard(sessionId: number): void {
+  clearPendingCard(sessionId);
 }
 
 export interface NextSessionCard {

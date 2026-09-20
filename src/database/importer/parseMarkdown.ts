@@ -76,6 +76,17 @@ export function parseBlockAsCard(block: string, type: CardType): ParsedCard | nu
     };
   }
 
+  if (type === "discursive") {
+    if (!sections["Pergunta"] || !sections["Resposta Modelo"]) return null;
+    return {
+      title: sections["Pergunta"],
+      front: sections["Pergunta"],
+      back: sections["Resposta Modelo"],
+      explanation: null,
+      alternatives: [],
+    };
+  }
+
   // multiple_choice
   const correct = sections["Resposta Correta"];
   if (!sections["Pergunta"] || !sections["Alternativas"] || !correct) return null;

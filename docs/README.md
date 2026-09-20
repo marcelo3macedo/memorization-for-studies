@@ -13,6 +13,7 @@ Armazenamento dos flashcards em arquivos `.md`, organizados em duas camadas de p
 * **`perguntas-e-respostas/`** — formato pergunta/resposta (estudo mais discursivo).
 * **`flashcards/`** — formato frente/verso (cartão curto, otimizado para revisão SRS).
 * **`perguntas-de-alternativas/`** — formato múltipla escolha (pergunta, alternativas, resposta correta e explicação exibida em caso de erro).
+* **`discursivas/`** — pergunta discursiva respondida em texto livre pelo usuário, avaliada por uma LLM (OpenAI) comparando com uma resposta modelo e devolvendo dicas de escrita.
 
 ## Arquivos
 
@@ -89,5 +90,28 @@ A
 ### Explicação
 ...
 ```
+
+### Formato — `discursivas/`
+
+```markdown
+### Pergunta
+Texto da pergunta.
+
+### Resposta Modelo
+Resposta de referência usada pela LLM para avaliar o texto enviado pelo usuário.
+
+---
+
+### Pergunta
+Próxima pergunta.
+
+### Resposta Modelo
+Próxima resposta de referência.
+```
+
+Ao responder um card desse tipo pelo bot, o usuário digita a resposta como
+mensagem de texto livre; ela é enviada para a OpenAI (variável `OPENAI_KEY`),
+que compara com a `Resposta Modelo` e devolve uma avaliação de conteúdo mais
+dicas de escrita no nível mais fácil possível.
 
 Veja `exemplo-part1.md` em cada pasta para um exemplo completo.

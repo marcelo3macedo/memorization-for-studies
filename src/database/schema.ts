@@ -4,7 +4,7 @@ export function initSchema(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS cards (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL CHECK (type IN ('qa', 'flashcard', 'multiple_choice')),
+      type TEXT NOT NULL CHECK (type IN ('qa', 'flashcard', 'multiple_choice', 'discursive')),
       source TEXT NOT NULL CHECK (source IN ('oficiais', 'gerados')),
       file_path TEXT NOT NULL,
       title TEXT NOT NULL,
@@ -41,7 +41,8 @@ export function initSchema(db: Database.Database): void {
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       started_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_activity_at TEXT NOT NULL DEFAULT (datetime('now')),
-      completed_at TEXT
+      completed_at TEXT,
+      pending_card_id INTEGER REFERENCES cards(id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
@@ -69,5 +70,57 @@ export function initSchema(db: Database.Database): void {
   const sessionColumns = db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[];
   if (!sessionColumns.some((column) => column.name === "completed_at")) {
     db.exec("ALTER TABLE sessions ADD COLUMN completed_at TEXT");
+  }
+
+  // Migração para bancos criados antes da coluna pending_card_id existir
+  // (rastreia o card discursivo aguardando resposta em texto livre na sessão).
+  if (!sessionColumns.some((column) => column.name === "pending_card_id")) {
+    db.exec("ALTER TABLE sessions ADD COLUMN pending_card_id INTEGER REFERENCES cards(id)");
+  }
+
+  migrateCardsTypeCheck(db);
+}
+
+/**
+ * Migração para bancos criados antes do tipo 'discursive' existir. SQLite
+ * não permite alterar um CHECK de uma tabela existente via ALTER TABLE, então
+ * a tabela precisa ser recriada preservando os dados e o id de cada card
+ * (referenciado por card_alternatives, user_card_views e session_cards).
+ */
+function migrateCardsTypeCheck(db: Database.Database): void {
+  const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'").get() as
+    | { sql: string }
+    | undefined;
+  if (!table || table.sql.includes("'discursive'")) return;
+
+  db.pragma("foreign_keys = OFF");
+  try {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE cards_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL CHECK (type IN ('qa', 'flashcard', 'multiple_choice', 'discursive')),
+          source TEXT NOT NULL CHECK (source IN ('oficiais', 'gerados')),
+          file_path TEXT NOT NULL,
+          title TEXT NOT NULL,
+          front TEXT NOT NULL,
+          back TEXT,
+          explanation TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (file_path, title)
+        );
+
+        INSERT INTO cards_new (id, type, source, file_path, title, front, back, explanation, created_at)
+          SELECT id, type, source, file_path, title, front, back, explanation, created_at FROM cards;
+
+        DROP TABLE cards;
+        ALTER TABLE cards_new RENAME TO cards;
+
+        CREATE INDEX IF NOT EXISTS idx_cards_type ON cards (type);
+        CREATE INDEX IF NOT EXISTS idx_cards_source ON cards (source);
+      `);
+    })();
+  } finally {
+    db.pragma("foreign_keys = ON");
   }
 }

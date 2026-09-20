@@ -13,11 +13,13 @@ docs/
 ├── oficiais/
 │   ├── perguntas-e-respostas/
 │   ├── flashcards/
-│   └── perguntas-de-alternativas/
+│   ├── perguntas-de-alternativas/
+│   └── discursivas/
 ├── gerados/
 │   ├── perguntas-e-respostas/
 │   ├── flashcards/
-│   └── perguntas-de-alternativas/
+│   ├── perguntas-de-alternativas/
+│   └── discursivas/
 └── temas/          (organização livre, sem 2º nível fixo)
 ```
 
@@ -41,9 +43,10 @@ de assunto à vontade.
 
 | Pasta | Quando usar |
 |---|---|
-| `perguntas-e-respostas/` | Pergunta discursiva, resposta mais longa/explicativa. |
+| `perguntas-e-respostas/` | Pergunta com resposta pronta, mais longa/explicativa — o usuário só revela e confere. |
 | `flashcards/` | Par curto frente/verso, revisão rápida (termo → definição). |
 | `perguntas-de-alternativas/` | Múltipla escolha (estilo prova/concurso), com explicação para o erro. |
+| `discursivas/` | Pergunta dissertativa que o usuário responde **digitando um texto livre**, avaliado por uma LLM (OpenAI) contra uma resposta modelo. |
 
 ## 3. Nomenclatura de arquivo
 
@@ -146,6 +149,42 @@ Regras específicas deste tipo:
 
 Exemplos completos e reais já existem em `docs/oficiais/*/exemplo-part1.md`
 e `docs/gerados/*/seguranca-da-informacao-part1.md`.
+
+### `discursivas/`
+
+```markdown
+### Pergunta
+Texto da pergunta dissertativa.
+
+### Resposta Modelo
+Resposta de referência, completa e tecnicamente precisa — é o que a LLM usa
+para avaliar o que o usuário escrever, não é mostrada a ele como gabarito.
+
+---
+
+### Pergunta
+Próxima pergunta.
+
+### Resposta Modelo
+Próxima resposta de referência.
+```
+
+Regras específicas deste tipo:
+- `### Resposta Modelo` vai para a coluna `back` do card, exatamente como em
+  `perguntas-e-respostas/`, mas o significado é diferente: é material de
+  referência para a avaliação automática, não uma resposta a ser revelada.
+  Escreva-a como um bom padrão de resposta de concurso — completa, correta,
+  organizada em tópicos quando fizer sentido (veja o nível de detalhe usado
+  em `docs/oficiais/perguntas-e-respostas/*.md` para o mesmo assunto).
+- No bot, o card é apresentado só com a pergunta; o usuário responde digitando
+  um texto livre (sem botões). A resposta é enviada para a OpenAI
+  (`OPENAI_KEY` no `.env`, ver `src/core/discursiveEvaluator.ts`), que compara
+  com a `Resposta Modelo` e devolve uma avaliação de conteúdo mais dicas de
+  escrita no nível mais fácil possível — não é preciso (nem incentivado)
+  escrever essas dicas manualmente no arquivo `.md`, elas são geradas na hora.
+- Pergunta deve ser autocontida (o usuário não vê a Resposta Modelo antes de
+  responder), então evite perguntas que dependam de contexto externo ao
+  próprio enunciado.
 
 ## 5. Regra de deduplicação — MUITO IMPORTANTE
 
