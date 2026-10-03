@@ -2,17 +2,15 @@ import type { TelegramCallbackQuery } from "../types";
 import { answerCallbackQuery, editMessageText, sendMessage } from "../telegramClient";
 import { syncTelegramUser } from "../userSync";
 import { ensureSession, getNextSessionCard, registerCardInteraction } from "../../core/sessionService";
-import { decodeCardAction } from "../cardActions";
-import { encodeAnswerAction, encodeRevealAction } from "../cardActions";
+import { decodeCardAction, encodeAnswerAction } from "../cardActions";
 import { decodeSessionAction, encodeSessionNewAction, encodeSessionNextAction } from "../sessionActions";
-import { decodeSimuladoAction, encodeSimuladoNextAction, encodeSimuladoStartAction } from "../simuladoActions";
+import { decodeSimuladoAction, encodeSimuladoNextAction } from "../simuladoActions";
 import {
   advanceSimulado,
   clearSimulado,
   getSimuladoState,
   getSimuladoSummary,
   recordSimuladoResult,
-  setSimuladoPendingCard,
   startSimulado,
 } from "../simuladoService";
 import { announceSession } from "../sessionMessages";
@@ -153,24 +151,19 @@ async function handleSimuladoNext(chatId: number, userId: number): Promise<void>
     const summary = getSimuladoSummary(userId);
     clearSimulado(userId);
 
-    const scored = summary.total - summary.skipped;
-    const pct = scored > 0 ? Math.round((summary.correct / scored) * 100) : 0;
+    const pct = summary.total > 0 ? Math.round((summary.correct / summary.total) * 100) : 0;
 
-    const summaryLines = [
+    const summaryText = [
       `🏁 Simulado finalizado!`,
       ``,
       `📊 Resultado — ${summary.total} questão(ões):`,
       `✅ Acertos: ${summary.correct}`,
       `❌ Erros: ${summary.incorrect}`,
-    ];
-    if (summary.skipped > 0) {
-      summaryLines.push(`👁 Reveladas (sem pontuação): ${summary.skipped}`);
-    }
-    if (scored > 0) {
-      summaryLines.push(``, `📈 Aproveitamento: ${pct}%`);
-    }
+      ``,
+      `📈 Aproveitamento: ${pct}%`,
+    ].join("\n");
 
-    await sendMessage(chatId, summaryLines.join("\n"));
+    await sendMessage(chatId, summaryText);
 
     const { session, cards } = ensureSession(userId);
     await announceSession(chatId, session, cards);
@@ -187,16 +180,9 @@ async function handleSimuladoCardAction(
   card: Card,
   action: CardAction,
 ): Promise<void> {
+  if (action.type !== "answer") return;
+
   const nextButton = inlineKeyboard([[{ text: "➡️ Próxima questão", data: encodeSimuladoNextAction() }]]);
-
-  if (action.type === "reveal") {
-    recordSimuladoResult(userId, card.id, null);
-    await editMessageText(chatId, messageId, `${card.front}\n\n${card.back ?? ""}`, {
-      reply_markup: nextButton,
-    });
-    return;
-  }
-
   const chosen = card.alternatives.find((alt) => alt.label === action.label);
   const correct = card.alternatives.find((alt) => alt.isCorrect);
   const isCorrect = chosen?.isCorrect ?? false;
@@ -219,34 +205,19 @@ async function handleSimuladoCardAction(
 
 async function sendSimuladoCard(
   chatId: number,
-  userId: number,
+  _userId: number,
   card: Card,
   current: number,
   total: number,
 ): Promise<void> {
   const header = `📝 Questão ${current}/${total}\n\n`;
+  const alternativesText = card.alternatives.map((alt) => `${alt.label}) ${alt.text}`).join("\n");
+  const buttons = card.alternatives.map((alt) => ({
+    text: alt.label,
+    data: encodeAnswerAction(card.id, alt.label),
+  }));
 
-  if (card.type === "multiple_choice") {
-    const alternativesText = card.alternatives.map((alt) => `${alt.label}) ${alt.text}`).join("\n");
-    const buttons = card.alternatives.map((alt) => ({
-      text: alt.label,
-      data: encodeAnswerAction(card.id, alt.label),
-    }));
-    await sendMessage(chatId, `${header}${card.front}\n\n${alternativesText}`, {
-      reply_markup: inlineKeyboard([buttons]),
-    });
-    return;
-  }
-
-  if (card.type === "discursive") {
-    setSimuladoPendingCard(userId, card.id);
-    await sendMessage(chatId, `${header}${card.front}\n\n✍️ Envie sua resposta em uma mensagem de texto.`);
-    return;
-  }
-
-  // flashcard / qa — botão de revelação
-  const buttonLabel = card.type === "flashcard" ? "Revelar" : "Revelar resposta";
-  await sendMessage(chatId, `${header}${card.front}`, {
-    reply_markup: inlineKeyboard([[{ text: buttonLabel, data: encodeRevealAction(card.id) }]]),
+  await sendMessage(chatId, `${header}${card.front}\n\n${alternativesText}`, {
+    reply_markup: inlineKeyboard([buttons]),
   });
 }

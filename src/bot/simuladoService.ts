@@ -5,21 +5,20 @@ const SIMULADO_CARD_COUNT = 20;
 
 export interface SimuladoResult {
   cardId: number;
-  correct: boolean | null; // null = card de revelação (sem pontuação)
+  correct: boolean;
 }
 
 export interface SimuladoState {
   cards: Card[];
   currentIndex: number;
   results: SimuladoResult[];
-  pendingCardId?: number; // card discursivo aguardando resposta de texto
 }
 
 // Estado em memória: userId → SimuladoState
 const simuladoByUser = new Map<number, SimuladoState>();
 
 export function startSimulado(userId: number): SimuladoState {
-  const allCards = listCards();
+  const allCards = listCards({ type: "multiple_choice" });
   const shuffled = [...allCards].sort(() => Math.random() - 0.5);
   const cards = shuffled.slice(0, SIMULADO_CARD_COUNT);
 
@@ -36,7 +35,7 @@ export function clearSimulado(userId: number): void {
   simuladoByUser.delete(userId);
 }
 
-export function recordSimuladoResult(userId: number, cardId: number, correct: boolean | null): void {
+export function recordSimuladoResult(userId: number, cardId: number, correct: boolean): void {
   const state = simuladoByUser.get(userId);
   if (state) state.results.push({ cardId, correct });
 }
@@ -50,29 +49,17 @@ export function advanceSimulado(userId: number): { card: Card | null; current: n
   return { card, current: state.currentIndex + 1, total: state.cards.length };
 }
 
-export function setSimuladoPendingCard(userId: number, cardId: number): void {
-  const state = simuladoByUser.get(userId);
-  if (state) state.pendingCardId = cardId;
-}
-
-export function clearSimuladoPendingCard(userId: number): void {
-  const state = simuladoByUser.get(userId);
-  if (state) delete state.pendingCardId;
-}
-
 export interface SimuladoSummary {
   correct: number;
   incorrect: number;
-  skipped: number;
   total: number;
 }
 
 export function getSimuladoSummary(userId: number): SimuladoSummary {
   const state = simuladoByUser.get(userId);
-  if (!state) return { correct: 0, incorrect: 0, skipped: 0, total: 0 };
+  if (!state) return { correct: 0, incorrect: 0, total: 0 };
 
-  const correct = state.results.filter((r) => r.correct === true).length;
-  const incorrect = state.results.filter((r) => r.correct === false).length;
-  const skipped = state.results.filter((r) => r.correct === null).length;
-  return { correct, incorrect, skipped, total: state.cards.length };
+  const correct = state.results.filter((r) => r.correct).length;
+  const incorrect = state.results.filter((r) => !r.correct).length;
+  return { correct, incorrect, total: state.cards.length };
 }
